@@ -1,121 +1,218 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="UTF-8">
-  <title>For You 💖</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      text-align: center;
-      background: #fff5f8;
-    }
-    h1 {
-      color: #ff4d88;
-    }
-    .grid {
-      display: grid;
-      grid-template-columns: repeat(10, 40px);
-      gap: 5px;
-      justify-content: center;
-      margin-top: 20px;
-    }
-    .cell {
-      width: 40px;
-      height: 40px;
-      background: white;
-      border: 2px solid #ffb6c1;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 20px;
-      cursor: pointer;
-      user-select: none;
-    }
-    .selected {
-      background: #ffd6e7;
-    }
-    .found {
-      background: #ff4d88;
-      color: white;
-    }
-    #message {
-      margin-top: 20px;
-      font-size: 20px;
-      color: #ff4d88;
-      display: none;
-    }
-  </style>
+<meta charset="UTF-8">
+<title>For You 💖</title>
+
+<style>
+body {
+  text-align: center;
+  font-family: Arial, sans-serif;
+  background: #fff5f8;
+}
+
+h1 {
+  color: #ff4d88;
+}
+
+#container {
+  position: relative;
+  display: inline-block;
+  margin-top: 20px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(10, 40px);
+  gap: 10px;
+}
+
+.cell {
+  width: 40px;
+  height: 40px;
+  font-size: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  user-select: none;
+}
+
+.found {
+  color: #ff4d88;
+  font-weight: bold;
+}
+
+#overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+}
+
+#message {
+  margin-top: 20px;
+  font-size: 22px;
+  color: #ff4d88;
+  display: none;
+}
+</style>
 </head>
+
 <body>
 
 <h1>Find the Hidden Word 💕</h1>
-<p>(Hint: it's something I feel about you)</p>
+<p>Drag across the letters...</p>
 
-<div class="grid" id="grid"></div>
+<div id="container">
+  <div class="grid" id="grid"></div>
+  <canvas id="overlay"></canvas>
+</div>
 
-<div id="message">You found it 💖 I love you.</div>
+<div id="message">You found it 💖</div>
 
 <script>
-  const word = "LOVE";
-  const gridSize = 10;
+const word = "LOVE";
+const size = 10;
 
-  let grid = [];
-  let selected = [];
+let grid = [];
+let startCell = null;
+let isDragging = false;
 
-  function createGrid() {
-    const gridElement = document.getElementById("grid");
+const gridEl = document.getElementById("grid");
+const canvas = document.getElementById("overlay");
+const ctx = canvas.getContext("2d");
 
-    // Fill grid with random letters
-    for (let i = 0; i < gridSize; i++) {
-      grid[i] = [];
-      for (let j = 0; j < gridSize; j++) {
-        const letter = String.fromCharCode(65 + Math.floor(Math.random() * 26));
-        grid[i][j] = letter;
-      }
-    }
+function resizeCanvas() {
+  canvas.width = gridEl.offsetWidth;
+  canvas.height = gridEl.offsetHeight;
+}
+window.addEventListener("resize", resizeCanvas);
 
-    // Place the word horizontally
-    const row = Math.floor(Math.random() * gridSize);
-    const col = Math.floor(Math.random() * (gridSize - word.length));
-
-    for (let i = 0; i < word.length; i++) {
-      grid[row][col + i] = word[i];
-    }
-
-    // Render grid
-    gridElement.innerHTML = "";
-    for (let i = 0; i < gridSize; i++) {
-      for (let j = 0; j < gridSize; j++) {
-        const cell = document.createElement("div");
-        cell.classList.add("cell");
-        cell.textContent = grid[i][j];
-        cell.dataset.row = i;
-        cell.dataset.col = j;
-
-        cell.addEventListener("click", () => selectCell(cell));
-
-        gridElement.appendChild(cell);
-      }
+function createGrid() {
+  for (let i = 0; i < size; i++) {
+    grid[i] = [];
+    for (let j = 0; j < size; j++) {
+      grid[i][j] = String.fromCharCode(65 + Math.random() * 26);
     }
   }
 
-  function selectCell(cell) {
-    cell.classList.toggle("selected");
+  // place word diagonally
+  let row = Math.floor(Math.random() * (size - word.length));
+  let col = Math.floor(Math.random() * (size - word.length));
 
-    selected = Array.from(document.querySelectorAll(".selected"))
-      .map(c => c.textContent)
-      .join("");
+  for (let i = 0; i < word.length; i++) {
+    grid[row + i][col + i] = word[i];
+  }
 
-    if (selected.includes(word)) {
-      document.querySelectorAll(".selected").forEach(c => {
-        c.classList.remove("selected");
-        c.classList.add("found");
-      });
-      document.getElementById("message").style.display = "block";
+  gridEl.innerHTML = "";
+
+  for (let i = 0; i < size; i++) {
+    for (let j = 0; j < size; j++) {
+      const cell = document.createElement("div");
+      cell.className = "cell";
+      cell.textContent = grid[i][j];
+      cell.dataset.row = i;
+      cell.dataset.col = j;
+
+      cell.addEventListener("mousedown", startDrag);
+      cell.addEventListener("mouseenter", dragOver);
+
+      gridEl.appendChild(cell);
     }
   }
 
-  createGrid();
+  resizeCanvas();
+}
+
+function getCellCenter(cell) {
+  const rect = cell.getBoundingClientRect();
+  const parentRect = gridEl.getBoundingClientRect();
+
+  return {
+    x: rect.left - parentRect.left + rect.width / 2,
+    y: rect.top - parentRect.top + rect.height / 2
+  };
+}
+
+function drawOval(x1, y1, x2, y2) {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  const cx = (x1 + x2) / 2;
+  const cy = (y1 + y2) / 2;
+  const dx = x2 - x1;
+  const dy = y2 - y1;
+  const length = Math.sqrt(dx * dx + dy * dy);
+
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate(Math.atan2(dy, dx));
+
+  ctx.beginPath();
+  ctx.ellipse(0, 0, length / 2 + 20, 25, 0, 0, Math.PI * 2);
+  ctx.fillStyle = "rgba(255, 77, 136, 0.2)";
+  ctx.fill();
+
+  ctx.restore();
+}
+
+function startDrag(e) {
+  startCell = e.target;
+  isDragging = true;
+}
+
+function dragOver(e) {
+  if (!isDragging || !startCell) return;
+
+  const start = getCellCenter(startCell);
+  const end = getCellCenter(e.target);
+
+  drawOval(start.x, start.y, end.x, end.y);
+}
+
+function endDrag(e) {
+  if (!isDragging || !startCell) return;
+
+  isDragging = false;
+
+  const endCell = e.target;
+  const startRow = parseInt(startCell.dataset.row);
+  const startCol = parseInt(startCell.dataset.col);
+  const endRow = parseInt(endCell.dataset.row);
+  const endCol = parseInt(endCell.dataset.col);
+
+  let letters = [];
+
+  const dRow = Math.sign(endRow - startRow);
+  const dCol = Math.sign(endCol - startCol);
+
+  let r = startRow;
+  let c = startCol;
+
+  while (true) {
+    letters.push(grid[r][c]);
+    if (r === endRow && c === endCol) break;
+    r += dRow;
+    c += dCol;
+  }
+
+  const selectedWord = letters.join("");
+
+  if (selectedWord === word || selectedWord === word.split("").reverse().join("")) {
+    document.querySelectorAll(".cell").forEach(cell => {
+      if (letters.includes(cell.textContent)) {
+        cell.classList.add("found");
+      }
+    });
+    document.getElementById("message").style.display = "block";
+  }
+
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  startCell = null;
+}
+
+document.addEventListener("mouseup", endDrag);
+
+createGrid();
 </script>
 
 </body>
