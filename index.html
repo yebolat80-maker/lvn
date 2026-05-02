@@ -169,50 +169,71 @@ function dragOver(e) {
   drawOval(start.x, start.y, end.x, end.y);
 }
 
+<script>
 function endDrag(e) {
   if (!isDragging || !startCell) return;
 
   isDragging = false;
 
-  const endCell = e.target;
+  const endCell = e.target.closest(".cell");
+  if (!endCell) {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    startCell = null;
+    return;
+  }
+
   const startRow = parseInt(startCell.dataset.row);
   const startCol = parseInt(startCell.dataset.col);
   const endRow = parseInt(endCell.dataset.row);
   const endCol = parseInt(endCell.dataset.col);
 
-  let letters = [];
+  const rowDiff = endRow - startRow;
+  const colDiff = endCol - startCol;
 
-  const dRow = Math.sign(endRow - startRow);
-  const dCol = Math.sign(endCol - startCol);
+  // Only allow straight horizontal, vertical, or perfect diagonal selections
+  const isHorizontal = rowDiff === 0;
+  const isVertical = colDiff === 0;
+  const isDiagonal = Math.abs(rowDiff) === Math.abs(colDiff);
+
+  if (!isHorizontal && !isVertical && !isDiagonal) {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    startCell = null;
+    return;
+  }
+
+  const dRow = Math.sign(rowDiff);
+  const dCol = Math.sign(colDiff);
+
+  let letters = [];
+  let selectedCells = [];
 
   let r = startRow;
   let c = startCol;
 
   while (true) {
     letters.push(grid[r][c]);
+    selectedCells.push(document.querySelector(`[data-row="${r}"][data-col="${c}"]`));
+
     if (r === endRow && c === endCol) break;
+
     r += dRow;
     c += dCol;
   }
 
   const selectedWord = letters.join("");
+  const reversedWord = word.split("").reverse().join("");
 
-  if (selectedWord === word || selectedWord === word.split("").reverse().join("")) {
-    document.querySelectorAll(".cell").forEach(cell => {
-      if (letters.includes(cell.textContent)) {
-        cell.classList.add("found");
-      }
+  if (selectedWord === word || selectedWord === reversedWord) {
+    selectedCells.forEach(cell => {
+      cell.classList.add("found");
     });
+
     document.getElementById("message").style.display = "block";
   }
 
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   startCell = null;
 }
-
-document.addEventListener("mouseup", endDrag);
-
-createGrid();
 </script>
 
 </body>
