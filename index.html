@@ -2,39 +2,50 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>For You 💖</title>
+<title>Sweetpuss Word Search 💖</title>
 
 <style>
 body {
   text-align: center;
   font-family: Arial, sans-serif;
   background: #fff5f8;
+  margin: 0;
+  padding: 20px;
 }
 
 h1 {
   color: #ff4d88;
+  font-size: 28px;
+  margin-bottom: 10px;
+}
+
+p {
+  font-size: 18px;
 }
 
 #container {
   position: relative;
   display: inline-block;
-  margin-top: 20px;
+  margin-top: 15px;
 }
 
 .grid {
   display: grid;
-  grid-template-columns: repeat(10, 40px);
-  gap: 10px;
+  grid-template-columns: repeat(15, 32px);
+  gap: 6px;
 }
 
 .cell {
-  width: 40px;
-  height: 40px;
-  font-size: 22px;
+  width: 32px;
+  height: 32px;
+  font-size: 20px;
+  color: black;
   display: flex;
   align-items: center;
   justify-content: center;
   user-select: none;
+  cursor: pointer;
+  font-weight: 500;
 }
 
 .found {
@@ -50,17 +61,36 @@ h1 {
 }
 
 #message {
-  margin-top: 20px;
+  margin-top: 22px;
   font-size: 22px;
   color: #ff4d88;
   display: none;
+}
+
+#wordList {
+  max-width: 560px;
+  margin: 20px auto 0;
+  font-size: 14px;
+  line-height: 1.8;
+  color: black;
+}
+
+.wordItem {
+  margin: 0 10px;
+  white-space: nowrap;
+}
+
+.wordFound {
+  color: #ff4d88;
+  font-weight: bold;
+  text-decoration: line-through;
 }
 </style>
 </head>
 
 <body>
 
-<h1>Find the Hidden Word 💕</h1>
+<h1>Sweetpuss Word Search</h1>
 <p>Drag across the letters...</p>
 
 <div id="container">
@@ -68,51 +98,75 @@ h1 {
   <canvas id="overlay"></canvas>
 </div>
 
-<div id="message">You found it 💖</div>
+<div id="wordList"></div>
+
+<div id="message">You found them all 💖</div>
 
 <script>
-const word = "LOVE";
-const size = 10;
+const puzzle = [
+  "QIQZHREDNEKSIGV",
+  "SNSUIOPVUWZLCKR",
+  "TDPSSSUPTEEWSEU",
+  "KGHAXTIDWHLZBFO",
+  "KSNBDZAEWHBMSUC",
+  "RTTVCADTUGETSDT",
+  "MCLIDBTANVGFWDO",
+  "PGXZMBVAOERNTDB",
+  "ICHCUMJNLNKFBQE",
+  "OBTDWMIAGILCXPR",
+  "SFWVGYBNZZVFIFK",
+  "QIDTOVFAGZPVNHS",
+  "QJULMVIERWIAOXC",
+  "CLASAGNAKXBPRIE",
+  "ANIUQSEALHYPLTJ"
+];
 
-let grid = [];
+const words = [
+  "SWEETPUSS",
+  "STIMMING",
+  "NOVEMBER",
+  "OCTOBER",
+  "LASAGNA",
+  "CHICKENTATSU",
+  "PIZZA",
+  "ISKENDER",
+  "LAESQUINA"
+];
+
+const size = puzzle.length;
+let grid = puzzle.map(row => row.split(""));
+let foundWords = new Set();
+
 let startCell = null;
+let currentCell = null;
 let isDragging = false;
 
 const gridEl = document.getElementById("grid");
 const canvas = document.getElementById("overlay");
 const ctx = canvas.getContext("2d");
+const wordListEl = document.getElementById("wordList");
 
 function resizeCanvas() {
   canvas.width = gridEl.offsetWidth;
   canvas.height = gridEl.offsetHeight;
 }
-window.addEventListener("resize", resizeCanvas);
+
+function createWordList() {
+  wordListEl.innerHTML = words.map((word, index) => {
+    return `<span class="wordItem" id="word-${word}">${index + 1}. ${word.toLowerCase()}</span>`;
+  }).join("");
+}
 
 function createGrid() {
-  for (let i = 0; i < size; i++) {
-    grid[i] = [];
-    for (let j = 0; j < size; j++) {
-      grid[i][j] = String.fromCharCode(65 + Math.random() * 26);
-    }
-  }
-
-  // place word diagonally
-  let row = Math.floor(Math.random() * (size - word.length));
-  let col = Math.floor(Math.random() * (size - word.length));
-
-  for (let i = 0; i < word.length; i++) {
-    grid[row + i][col + i] = word[i];
-  }
-
   gridEl.innerHTML = "";
 
-  for (let i = 0; i < size; i++) {
-    for (let j = 0; j < size; j++) {
+  for (let r = 0; r < size; r++) {
+    for (let c = 0; c < size; c++) {
       const cell = document.createElement("div");
       cell.className = "cell";
-      cell.textContent = grid[i][j];
-      cell.dataset.row = i;
-      cell.dataset.col = j;
+      cell.textContent = grid[r][c];
+      cell.dataset.row = r;
+      cell.dataset.col = c;
 
       cell.addEventListener("mousedown", startDrag);
       cell.addEventListener("mouseenter", dragOver);
@@ -134,13 +188,16 @@ function getCellCenter(cell) {
   };
 }
 
-function drawOval(x1, y1, x2, y2) {
+function drawOval(startCell, endCell) {
+  const start = getCellCenter(startCell);
+  const end = getCellCenter(endCell);
+
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  const cx = (x1 + x2) / 2;
-  const cy = (y1 + y2) / 2;
-  const dx = x2 - x1;
-  const dy = y2 - y1;
+  const cx = (start.x + end.x) / 2;
+  const cy = (start.y + end.y) / 2;
+  const dx = end.x - start.x;
+  const dy = end.y - start.y;
   const length = Math.sqrt(dx * dx + dy * dy);
 
   ctx.save();
@@ -148,8 +205,8 @@ function drawOval(x1, y1, x2, y2) {
   ctx.rotate(Math.atan2(dy, dx));
 
   ctx.beginPath();
-  ctx.ellipse(0, 0, length / 2 + 20, 25, 0, 0, Math.PI * 2);
-  ctx.fillStyle = "rgba(255, 77, 136, 0.2)";
+  ctx.ellipse(0, 0, length / 2 + 18, 20, 0, 0, Math.PI * 2);
+  ctx.fillStyle = "rgba(255, 77, 136, 0.25)";
   ctx.fill();
 
   ctx.restore();
@@ -157,34 +214,27 @@ function drawOval(x1, y1, x2, y2) {
 
 function startDrag(e) {
   startCell = e.target;
+  currentCell = e.target;
   isDragging = true;
+  drawOval(startCell, currentCell);
 }
 
 function dragOver(e) {
   if (!isDragging || !startCell) return;
 
-  const start = getCellCenter(startCell);
-  const end = getCellCenter(e.target);
-
-  drawOval(start.x, start.y, end.x, end.y);
+  currentCell = e.target;
+  drawOval(startCell, currentCell);
 }
 
-function endDrag(e) {
-  if (!isDragging || !startCell) return;
+function endDrag() {
+  if (!isDragging || !startCell || !currentCell) return;
 
   isDragging = false;
 
-  const endCell = e.target.closest(".cell");
-  if (!endCell) {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    startCell = null;
-    return;
-  }
-
   const startRow = parseInt(startCell.dataset.row);
   const startCol = parseInt(startCell.dataset.col);
-  const endRow = parseInt(endCell.dataset.row);
-  const endCol = parseInt(endCell.dataset.col);
+  const endRow = parseInt(currentCell.dataset.row);
+  const endCol = parseInt(currentCell.dataset.col);
 
   const rowDiff = endRow - startRow;
   const colDiff = endCol - startCol;
@@ -196,6 +246,7 @@ function endDrag(e) {
   if (!isHorizontal && !isVertical && !isDiagonal) {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     startCell = null;
+    currentCell = null;
     return;
   }
 
@@ -210,7 +261,9 @@ function endDrag(e) {
 
   while (true) {
     letters.push(grid[r][c]);
-    selectedCells.push(document.querySelector(`[data-row="${r}"][data-col="${c}"]`));
+
+    const cell = document.querySelector(`[data-row="${r}"][data-col="${c}"]`);
+    selectedCells.push(cell);
 
     if (r === endRow && c === endCol) break;
 
@@ -219,22 +272,36 @@ function endDrag(e) {
   }
 
   const selectedWord = letters.join("");
-  const reversedWord = word.split("").reverse().join("");
+  const reversedWord = selectedWord.split("").reverse().join("");
 
-  if (selectedWord === word || selectedWord === reversedWord) {
+  const matchedWord = words.find(word => word === selectedWord || word === reversedWord);
+
+  if (matchedWord && !foundWords.has(matchedWord)) {
+    foundWords.add(matchedWord);
+
     selectedCells.forEach(cell => {
       cell.classList.add("found");
     });
 
-    document.getElementById("message").style.display = "block";
+    const wordItem = document.getElementById(`word-${matchedWord}`);
+    if (wordItem) {
+      wordItem.classList.add("wordFound");
+    }
+
+    if (foundWords.size === words.length) {
+      document.getElementById("message").style.display = "block";
+    }
   }
 
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   startCell = null;
+  currentCell = null;
 }
 
 document.addEventListener("mouseup", endDrag);
+window.addEventListener("resize", resizeCanvas);
 
+createWordList();
 createGrid();
 </script>
 
